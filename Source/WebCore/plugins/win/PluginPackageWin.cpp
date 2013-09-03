@@ -250,8 +250,28 @@ bool PluginPackage::load()
         if (!::SetCurrentDirectoryW(path.charactersWithNullTermination()))
             return false;
 
+		// BEGIN - Modified by Lunascape Corporation
+		String targetPath = m_path;
+
+		if (targetPath.find("\\macromed\\", 0, false) != -1
+			&& targetPath.find("npswf", 0, false) != -1
+		)
+		{
+			WCHAR tmpPath[MAX_PATH];
+			DWORD ret = ::GetTempPathW(MAX_PATH, tmpPath);
+			if (ret != 0)
+			{
+				WCHAR pluginPath[MAX_PATH];
+				PathCombine(pluginPath, tmpPath, L"AxWebKit\\npswf.dll");
+
+				targetPath = pluginPath;
+			}
+		}
+
         // Load the library
-        m_module = ::LoadLibraryExW(m_path.charactersWithNullTermination(), 0, LOAD_WITH_ALTERED_SEARCH_PATH);
+        //m_module = ::LoadLibraryExW(m_path.charactersWithNullTermination(), 0, LOAD_WITH_ALTERED_SEARCH_PATH);
+        m_module = ::LoadLibraryExW(targetPath.charactersWithNullTermination(), 0, LOAD_WITH_ALTERED_SEARCH_PATH);
+		// END - Modified by Lunascape Corporation
 
         if (!::SetCurrentDirectoryW(currentPath)) {
             if (m_module)
