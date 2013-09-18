@@ -254,8 +254,7 @@ bool PluginPackage::load()
 		String targetPath = m_path;
 
 		if (targetPath.find("\\macromed\\", 0, false) != -1
-			&& targetPath.find("npswf", 0, false) != -1
-		)
+			&& targetPath.find("npswf", 0, false) != -1)
 		{
 			WCHAR tmpPath[MAX_PATH];
 			DWORD ret = ::GetTempPathW(MAX_PATH, tmpPath);
@@ -263,8 +262,24 @@ bool PluginPackage::load()
 			{
 				WCHAR pluginPath[MAX_PATH];
 				PathCombine(pluginPath, tmpPath, L"AxWebKit\\npswf.dll");
-
-				targetPath = pluginPath;
+				if(::PathFileExists(pluginPath))
+				{
+					targetPath = pluginPath;
+				}
+			}
+		}
+		else if(targetPath.find("nppdf", 0, false) != -1)
+		{
+			WCHAR tmpPath[MAX_PATH];
+			DWORD ret = ::GetTempPathW(MAX_PATH, tmpPath);
+			if (ret != 0)
+			{
+				WCHAR pluginPath[MAX_PATH];
+				PathCombine(pluginPath, tmpPath, L"AxWebKit\\nppdf.dll");
+				if(::PathFileExists(pluginPath))
+				{
+					targetPath = pluginPath;
+				}
 			}
 		}
 
