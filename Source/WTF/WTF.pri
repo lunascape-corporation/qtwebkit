@@ -16,13 +16,13 @@ mac {
 } else {
     contains(QT_CONFIG,icu) {
         win32: LIBS += -licuin -licuuc -licudt
+        else:android: LIBS += -licui18n -licuuc
         else: LIBS += -licui18n -licuuc -licudata
     }
 }
 
-linux-*:use?(GSTREAMER) {
-    DEFINES += ENABLE_GLIB_SUPPORT=1
-    PKGCONFIG += glib-2.0 gio-2.0
+use?(GLIB) {
+    PKGCONFIG *= glib-2.0 gio-2.0
 }
 
 win32-* {

@@ -497,6 +497,7 @@ QMenu *createContextMenu(QWebPage* page, const QList<MenuItem>& items, QBitArray
             QWebPage::WebAction action = webActionForAdapterMenuAction(item.action);
             QAction *a = page->action(action);
             if (a) {
+                a->setText(item.title);
                 a->setEnabled(item.traits & MenuItem::Enabled);
                 a->setCheckable(item.traits & MenuItem::Checkable);
                 a->setChecked(item.traits & MenuItem::Checked);
@@ -523,7 +524,7 @@ QMenu *createContextMenu(QWebPage* page, const QList<MenuItem>& items, QBitArray
 
             // don't show sub-menus with just disabled actions
             if (anyEnabledAction) {
-                subMenu->setTitle(item.subMenuTitle);
+                subMenu->setTitle(item.title);
                 menu->addAction(subMenu->menuAction());
             } else
                 delete subMenu;
@@ -834,32 +835,27 @@ void QWebPagePrivate::keyPressEvent(QKeyEvent *ev)
     // to trigger editor commands via triggerAction().
     bool handled = handleKeyEvent(ev);
 
+    if (!handled)
+        handled = handleScrolling(ev);
+
     if (!handled) {
         handled = true;
-        if (!handleScrolling(ev)) {
-            switch (ev->key()) {
-            case Qt::Key_Back:
-                q->triggerAction(QWebPage::Back);
-                break;
-            case Qt::Key_Forward:
-                q->triggerAction(QWebPage::Forward);
-                break;
-            case Qt::Key_Stop:
-                q->triggerAction(QWebPage::Stop);
-                break;
-            case Qt::Key_Refresh:
-                q->triggerAction(QWebPage::Reload);
-                break;
-            case Qt::Key_Backspace:
-                if (ev->modifiers() == Qt::ShiftModifier)
-                    q->triggerAction(QWebPage::Forward);
-                else
-                    q->triggerAction(QWebPage::Back);
-                break;
-            default:
-                handled = false;
-                break;
-            }
+        switch (ev->key()) {
+        case Qt::Key_Back:
+            q->triggerAction(QWebPage::Back);
+            break;
+        case Qt::Key_Forward:
+            q->triggerAction(QWebPage::Forward);
+            break;
+        case Qt::Key_Stop:
+            q->triggerAction(QWebPage::Stop);
+            break;
+        case Qt::Key_Refresh:
+            q->triggerAction(QWebPage::Reload);
+            break;
+        default:
+            handled = false;
+            break;
         }
     }
 
@@ -1051,6 +1047,27 @@ QWebInspector* QWebPagePrivate::getOrCreateInspector()
    was reached and the text was not found.
    \value HighlightAllOccurrences Highlights all existing occurrences of a specific string.
        (This value was introduced in 4.6.)
+   \value FindAtWordBeginningsOnly Searches for the sub-string only at the beginnings of words.
+       (This value was introduced in 5.2.)
+   \value TreatMedialCapitalAsWordBeginning Treats a capital letter occurring anywhere in the middle of a word
+   as the beginning of a new word.
+       (This value was introduced in 5.2.)
+   \value FindBeginsInSelection Begin searching inside the text selection first.
+       (This value was introduced in 5.2.)
+*/
+
+/*!
+    \enum QWebPage::VisibilityState
+
+    This enum defines visibility states that a webpage can take.
+
+    \value VisibilityStateVisible The webpage is at least partially visible at on at least one screen.
+    \value VisibilityStateHidden The webpage is not visible at all on any screen.
+    \value VisibilityStatePrerender The webpage is loaded off-screen and is not visible.
+    \value VisibilityStateUnloaded The webpage is unloading its content.
+    More information about this values can be found at \l{ http://www.w3.org/TR/page-visibility/#dom-document-visibilitystate}{W3C Recommendation: Page Visibility: visibilityState attribute}.
+
+    \sa QWebPage::visibilityState
 */
 
 /*!
@@ -1166,7 +1183,13 @@ QWebInspector* QWebPagePrivate::getOrCreateInspector()
     \value AlignJustified Applies full justification to content. (Added in Qt 4.6)
     \value AlignLeft Applies left justification to content. (Added in Qt 4.6)
     \value AlignRight Applies right justification to content. (Added in Qt 4.6)
-
+    \value DownloadMediaToDisk Download the hovered audio or video to the disk. (Added in Qt 5.2)
+    \value CopyMediaUrlToClipboard Copy the hovered audio or video's URL to the clipboard. (Added in Qt 5.2)
+    \value ToggleMediaControls Toggles between showing and hiding the controls for the hovered audio or video element. (Added in Qt 5.2)
+    \value ToggleMediaLoop Toggles whether the hovered audio or video should loop on completetion or not. (Added in Qt 5.2)
+    \value ToggleMediaPlayPause Toggles the play/pause state of the hovered audio or video element. (Added in Qt 5.2)
+    \value ToggleMediaMute Mutes or unmutes the hovered audio or video element. (Added in Qt 5.2)
+    \value ToggleVideoFullscreen Switches the hovered video element into or out of fullscreen mode. (Added in Qt 5.2)
 
     \omitvalue WebActionCount
 
@@ -1596,7 +1619,7 @@ void QWebPage::setFeaturePermission(QWebFrame* frame, Feature feature, Permissio
 #endif
         break;
     case Geolocation:
-#if ENABLE(GEOLOCATION)
+#if ENABLE(GEOLOCATION) && HAVE(QTPOSITIONING)
         if (policy != PermissionUnknown)
             d->setGeolocationEnabledForFrame(frame->d, (policy == PermissionGrantedByUser));
 #endif
@@ -1705,6 +1728,12 @@ void QWebPage::triggerAction(WebAction action, bool)
     case SetTextDirectionDefault:
     case SetTextDirectionLeftToRight:
     case SetTextDirectionRightToLeft:
+    case DownloadMediaToDisk:
+    case ToggleMediaControls:
+    case ToggleMediaLoop:
+    case ToggleMediaPlayPause:
+    case ToggleMediaMute:
+    case ToggleVideoFullscreen:
         mappedAction = adapterMenuActionForWebAction(action);
         break;
     case ReloadAndBypassCache: // Manual mapping
@@ -1716,6 +1745,9 @@ void QWebPage::triggerAction(WebAction action, bool)
         break;
     case CopyImageUrlToClipboard:
         QApplication::clipboard()->setText(d->hitTestResult.imageUrl().toString());
+        break;
+    case CopyMediaUrlToClipboard:
+        QApplication::clipboard()->setText(d->hitTestResult.mediaUrl().toString());
         break;
 #endif
     case InspectElement: {
@@ -2188,6 +2220,13 @@ QAction *QWebPage::action(WebAction action) const
     case ToggleBold:
     case ToggleItalic:
     case ToggleUnderline:
+    case DownloadMediaToDisk:
+    case CopyMediaUrlToClipboard:
+    case ToggleMediaControls:
+    case ToggleMediaLoop:
+    case ToggleMediaPlayPause:
+    case ToggleMediaMute:
+    case ToggleVideoFullscreen:
         mappedAction = adapterMenuActionForWebAction(action);
         break;
     case InspectElement:
@@ -3135,6 +3174,31 @@ quint64 QWebPage::bytesReceived() const
 {
     return d->m_bytesReceived;
 }
+
+
+/*!
+    \property QWebPage::visibilityState
+    \brief the page's visibility state
+
+    This property should be changed by Qt applications who want to notify the JavaScript application
+    that the visibility state has changed (e.g. by reimplementing QWidget::setVisible).
+    The visibility state will be updated with the \a state parameter value only if it's different from the previous set.
+    Then, HTML DOM Document Object attributes 'hidden' and 'visibilityState'
+    will be updated to the correct value and a 'visiblitychange' event will be fired.
+    More information about this HTML5 API can be found at \l{http://www.w3.org/TR/page-visibility/}{W3C Recommendation: Page Visibility}.
+
+    By default, this property is set to VisibilityStateVisible.
+*/
+void QWebPage::setVisibilityState(VisibilityState state)
+{
+    d->setVisibilityState(static_cast<QWebPageAdapter::VisibilityState>(state));
+}
+
+QWebPage::VisibilityState QWebPage::visibilityState() const
+{
+    return static_cast<VisibilityState>(d->visibilityState());
+}
+
 
 /*!
     \since 4.8

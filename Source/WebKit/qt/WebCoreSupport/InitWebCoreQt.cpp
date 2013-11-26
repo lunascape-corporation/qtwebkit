@@ -34,16 +34,16 @@
 #include "ChromeClientQt.h"
 #include "Font.h"
 #include "Image.h"
+#include "InitializeLogging.h"
+#include "MemoryCache.h"
 #include "NotImplemented.h"
 #include "Page.h"
 #include "PlatformStrategiesQt.h"
 #include "RenderThemeQStyle.h"
+#include "RuntimeEnabledFeatures.h"
 #include "ScriptController.h"
 #include "ScrollbarThemeQStyle.h"
 #include "SecurityPolicy.h"
-#if USE(QTKIT)
-#include "WebSystemInterface.h"
-#endif
 
 #include "qwebelement_p.h"
 #include <JavaScriptCore/runtime/InitializeThreading.h>
@@ -62,7 +62,7 @@ static WebCore::QStyleFacade* createStyleForPage(WebCore::Page* page)
 {
     QWebPageAdapter* pageAdapter = 0;
     if (page)
-        pageAdapter = static_cast<WebCore::ChromeClientQt*>(page->chrome()->client())->m_webPage;
+        pageAdapter = static_cast<WebCore::ChromeClientQt*>(page->chrome().client())->m_webPage;
     return initCallback(pageAdapter);
 }
 
@@ -105,9 +105,9 @@ Q_DECL_EXPORT void initializeWebCoreQt()
     PlatformStrategiesQt::initialize();
     QtWebElementRuntime::initialize();
 
-#if USE(QTKIT)
-    InitWebCoreSystemInterface();
-#endif
+    if (!WebCore::memoryCache()->disabled())
+        WebCore::memoryCache()->setDeadDecodedDataDeletionInterval(60);
+    WebCore::RuntimeEnabledFeatures::setCSSCompositingEnabled(true);
 
     initialized = true;
 }

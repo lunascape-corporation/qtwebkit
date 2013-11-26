@@ -131,8 +131,7 @@ void RenderThemeQStyle::setPaletteFromPageClientIfExists(QPalette& palette) cons
     if (!m_page)
         return;
 
-    ASSERT(m_page->chrome());
-    ChromeClient* chromeClient = m_page->chrome()->client();
+    ChromeClient* chromeClient = m_page->chrome().client();
     if (!chromeClient)
         return;
 
@@ -248,9 +247,9 @@ void RenderThemeQStyle::adjustButtonStyle(StyleResolver* styleResolver, RenderSt
     fontDescription.setComputedSize(style->fontSize());
 #endif
 
-    FontFamily fontFamily;
-    fontFamily.setFamily(m_buttonFontFamily);
-    fontDescription.setFamily(fontFamily);
+    Vector<AtomicString, 1> families;
+    families.append(m_buttonFontFamily);
+    fontDescription.setFamilies(families);
     style->setFontDescription(fontDescription);
     style->font().update(styleResolver->fontSelector());
     style->setLineHeight(RenderStyle::initialLineHeight());
@@ -438,7 +437,7 @@ bool RenderThemeQStyle::paintSliderTrack(RenderObject* o, const PaintInfo& pi, c
 
     // some styles need this to show a highlight on one side of the groove
     HTMLInputElement* slider = o->node()->toInputElement();
-    if (slider) {
+    if (slider && slider->isSteppable()) {
         p.styleOption.slider.upsideDown = (p.appearance == SliderHorizontalPart) && !o->style()->isLeftToRightDirection();
         // Use the width as a multiplier in case the slider values are <= 1
         const int width = r.width() > 0 ? r.width() : 100;

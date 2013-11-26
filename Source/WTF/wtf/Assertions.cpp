@@ -45,10 +45,13 @@
 #include <signal.h>
 #endif
 
-#if PLATFORM(MAC)
+#if USE(CF)
 #include <CoreFoundation/CFString.h>
+#if PLATFORM(IOS) || __MAC_OS_X_VERSION_MIN_REQUIRED >= 1080
+#define WTF_USE_APPLE_SYSTEM_LOG 1
 #include <asl.h>
 #endif
+#endif // USE(CF)
 
 #if COMPILER(MSVC) && !OS(WINCE)
 #include <crtdbg.h>
@@ -64,8 +67,8 @@
 #include <execinfo.h>
 #endif
 
-#if OS(ANDROID)
-#include "android/log.h"
+#if HAVE(ANDROID_SDK)
+#include <android/log.h>
 #endif
 
 #if PLATFORM(BLACKBERRY)
@@ -77,7 +80,7 @@ extern "C" {
 WTF_ATTRIBUTE_PRINTF(1, 0)
 static void vprintf_stderr_common(const char* format, va_list args)
 {
-#if PLATFORM(MAC)
+#if USE(CF) && !OS(WINDOWS)
     if (strstr(format, "%@")) {
         CFStringRef cfFormat = CFStringCreateWithCString(NULL, format, kCFStringEncodingUTF8);
 
@@ -89,12 +92,12 @@ static void vprintf_stderr_common(const char* format, va_list args)
 #if COMPILER(CLANG)
 #pragma clang diagnostic pop
 #endif
-        int length = CFStringGetMaximumSizeForEncoding(CFStringGetLength(str), kCFStringEncodingUTF8);
+        CFIndex length = CFStringGetMaximumSizeForEncoding(CFStringGetLength(str), kCFStringEncodingUTF8);
         char* buffer = (char*)malloc(length + 1);
 
         CFStringGetCString(str, buffer, length, kCFStringEncodingUTF8);
 
-#if PLATFORM(IOS) || __MAC_OS_X_VERSION_MIN_REQUIRED >= 1080
+#if USE(APPLE_SYSTEM_LOG)
         asl_log(0, 0, ASL_LEVEL_NOTICE, "%s", buffer);
 #endif
         fputs(buffer, stderr);
@@ -105,7 +108,7 @@ static void vprintf_stderr_common(const char* format, va_list args)
         return;
     }
 
-#if PLATFORM(IOS) || __MAC_OS_X_VERSION_MIN_REQUIRED >= 1080
+#if USE(APPLE_SYSTEM_LOG)
     va_list copyOfArgs;
     va_copy(copyOfArgs, args);
     asl_vlog(0, 0, ASL_LEVEL_NOTICE, format, copyOfArgs);
@@ -116,7 +119,7 @@ static void vprintf_stderr_common(const char* format, va_list args)
 
 #elif PLATFORM(BLACKBERRY)
     BBLOGV(BlackBerry::Platform::LogLevelCritical, format, args);
-#elif OS(ANDROID)
+#elif HAVE(ANDROID_SDK)
     __android_log_vprint(ANDROID_LOG_WARN, "WebKit", format, args);
 #elif HAVE(ISDEBUGGERPRESENT)
     if (IsDebuggerPresent()) {
@@ -331,8 +334,21 @@ void WTFSetCrashHook(WTFCrashHookFunction function)
 
 void WTFInvokeCrashHook()
 {
+}
+
+void WTFCrash()
+{
     if (globalHook)
         globalHook();
+
+    WTFReportBacktrace();
+    *(int *)(uintptr_t)0xbbadbeef = 0;
+    // More reliable, but doesn't say BBADBEEF.
+#if COMPILER(CLANG)
+    __builtin_trap();
+#else
+    ((void(*)())0)();
+#endif
 }
 
 #if HAVE(SIGNAL_H)

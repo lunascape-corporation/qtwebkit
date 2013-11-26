@@ -31,7 +31,7 @@
 #include "config.h"
 #include "RuntimeEnabledFeatures.h"
 
-#include "AbstractDatabase.h"
+#include "DatabaseManager.h"
 #include "MediaPlayer.h"
 #include "SharedWorkerRepository.h"
 #include "WebSocket.h"
@@ -49,13 +49,14 @@ bool RuntimeEnabledFeatures::isApplicationCacheEnabled = true;
 bool RuntimeEnabledFeatures::isDataTransferItemsEnabled = true;
 bool RuntimeEnabledFeatures::isGeolocationEnabled = true;
 bool RuntimeEnabledFeatures::isIndexedDBEnabled = false;
-bool RuntimeEnabledFeatures::isWebAudioEnabled = false;
 bool RuntimeEnabledFeatures::isTouchEnabled = true;
 bool RuntimeEnabledFeatures::isDeviceMotionEnabled = true;
 bool RuntimeEnabledFeatures::isDeviceOrientationEnabled = true;
 bool RuntimeEnabledFeatures::isSpeechInputEnabled = true;
-bool RuntimeEnabledFeatures::isCSSExclusionsEnabled = false;
+bool RuntimeEnabledFeatures::isCSSExclusionsEnabled = true;
+bool RuntimeEnabledFeatures::isCSSShapesEnabled = true;
 bool RuntimeEnabledFeatures::isCSSRegionsEnabled = false;
+bool RuntimeEnabledFeatures::isCSSCompositingEnabled = false;
 bool RuntimeEnabledFeatures::isLangAttributeAwareFormControlUIEnabled = false;
 
 #if ENABLE(SCRIPTED_SPEECH)
@@ -67,8 +68,8 @@ bool RuntimeEnabledFeatures::isMediaStreamEnabled = true;
 bool RuntimeEnabledFeatures::isPeerConnectionEnabled = true;
 #endif
 
-#if ENABLE(GAMEPAD)
-bool RuntimeEnabledFeatures::isGamepadEnabled = false;
+#if ENABLE(LEGACY_CSS_VENDOR_PREFIXES)
+bool RuntimeEnabledFeatures::isLegacyCSSVendorPrefixesEnabled = false;
 #endif
 
 #if ENABLE(FILE_SYSTEM)
@@ -147,46 +148,22 @@ bool RuntimeEnabledFeatures::webSocketEnabled()
 }
 #endif
 
-#if ENABLE(SQL_DATABASE)
-bool RuntimeEnabledFeatures::openDatabaseEnabled()
-{
-    return AbstractDatabase::isAvailable();
-}
-
-bool RuntimeEnabledFeatures::openDatabaseSyncEnabled()
-{
-    return AbstractDatabase::isAvailable();
-}
-#endif
-
-#if ENABLE(QUOTA)
-bool RuntimeEnabledFeatures::isQuotaEnabled = false;
-#endif
-
-#if ENABLE(FULLSCREEN_API)
-bool RuntimeEnabledFeatures::isFullScreenAPIEnabled = true;
-#endif
-
-#if ENABLE(MEDIA_SOURCE)
-bool RuntimeEnabledFeatures::isMediaSourceEnabled = false;
-#endif
-
 #if ENABLE(VIDEO_TRACK)
-#if PLATFORM(MAC) || PLATFORM(GTK) || PLATFORM(EFL) || PLATFORM(CHROMIUM) || PLATFORM(BLACKBERRY)
+#if PLATFORM(MAC) || PLATFORM(GTK) || PLATFORM(EFL) || PLATFORM(BLACKBERRY) || PLATFORM(WIN) || PLATFORM(QT)
     bool RuntimeEnabledFeatures::isVideoTrackEnabled = true;
 #else
     bool RuntimeEnabledFeatures::isVideoTrackEnabled = false;
 #endif
 #endif
 
-#if ENABLE(ENCRYPTED_MEDIA)
-bool RuntimeEnabledFeatures::isEncryptedMediaEnabled = false;
-#endif
-
 #if ENABLE(SHADOW_DOM)
 bool RuntimeEnabledFeatures::isShadowDOMEnabled = false;
 
 bool RuntimeEnabledFeatures::isAuthorShadowDOMForAnyElementEnabled = false;
+#endif
+
+#if ENABLE(CUSTOM_ELEMENTS)
+bool RuntimeEnabledFeatures::isCustomDOMElementsEnabled = false;
 #endif
 
 #if ENABLE(STYLE_SCOPED)
@@ -197,12 +174,8 @@ bool RuntimeEnabledFeatures::isStyleScopedEnabled = false;
 bool RuntimeEnabledFeatures::isInputTypeDateEnabled = true;
 #endif
 
-#if ENABLE(INPUT_TYPE_DATETIME)
-#if PLATFORM(CHROMIUM) && !OS(ANDROID)
+#if ENABLE(INPUT_TYPE_DATETIME_INCOMPLETE)
 bool RuntimeEnabledFeatures::isInputTypeDateTimeEnabled = false;
-#else
-bool RuntimeEnabledFeatures::isInputTypeDateTimeEnabled = true;
-#endif
 #endif
 
 #if ENABLE(INPUT_TYPE_DATETIMELOCAL)
@@ -225,8 +198,16 @@ bool RuntimeEnabledFeatures::isInputTypeWeekEnabled = true;
 bool RuntimeEnabledFeatures::isDialogElementEnabled = false;
 #endif
 
-#if ENABLE(REQUEST_AUTOCOMPLETE)
-bool RuntimeEnabledFeatures::isRequestAutocompleteEnabled = false;
+#if ENABLE(CSP_NEXT)
+bool RuntimeEnabledFeatures::areExperimentalContentSecurityPolicyFeaturesEnabled = false;
+#endif
+
+#if ENABLE(IFRAME_SEAMLESS)
+bool RuntimeEnabledFeatures::areSeamlessIFramesEnabled = false;
+#endif
+
+#if ENABLE(FONT_LOAD_EVENTS)
+bool RuntimeEnabledFeatures::isFontLoadEventsEnabled = false;
 #endif
 
 } // namespace WebCore

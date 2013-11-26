@@ -104,7 +104,7 @@ typedef enum {
     QObj,
     Object,
     Null,
-    RTUint8ClampedArray
+    RTUint8Array
 } JSRealType;
 
 #if defined(QTWK_RUNTIME_CONVERSION_DEBUG) || defined(QTWK_RUNTIME_MATCH_DEBUG)
@@ -146,9 +146,9 @@ void registerCustomType(int qtMetaTypeId, ConvertToVariantFunction toVariantFunc
     customRuntimeConversions()->insert(qtMetaTypeId, conversion);
 }
 
-static bool isJSUint8ClampedArray(JSObjectRef object)
+static bool isJSUint8Array(JSObjectRef object)
 {
-    return toJS(object)->inherits(&JSUint8ClampedArray::s_info);
+    return toJS(object)->inherits(&JSUint8Array::s_info);
 }
 
 static bool isJSArray(JSObjectRef object)
@@ -181,8 +181,8 @@ static JSRealType valueRealType(JSContextRef context, JSValueRef value, JSValueR
 
     JSObjectRef object = JSValueToObject(context, value, exception);
 
-    if (isJSUint8ClampedArray(object))
-        return RTUint8ClampedArray;
+    if (isJSUint8Array(object))
+        return RTUint8Array;
     if (isJSArray(object))
             return Array;
     if (isJSDate(object))
@@ -325,7 +325,7 @@ QVariant convertValueToQVariant(JSContextRef context, JSValueRef value, QMetaTyp
 
     // check magic pointer values before dereferencing value
     if (JSValueIsNumber(context, value)
-        && isnan(JSValueToNumber(context, value, exception))) {
+        && std::isnan(JSValueToNumber(context, value, exception))) {
         if (distance)
             *distance = -1;
         return QVariant();
@@ -359,7 +359,7 @@ QVariant convertValueToQVariant(JSContextRef context, JSValueRef value, QMetaTyp
             case QObj:
                 hint = QMetaType::QObjectStar;
                 break;
-            case RTUint8ClampedArray:
+            case RTUint8Array:
                 hint = QMetaType::QByteArray;
                 break;
             case Array:
@@ -493,8 +493,8 @@ QVariant convertValueToQVariant(JSContextRef context, JSValueRef value, QMetaTyp
         }
 
         case QMetaType::QByteArray: {
-            if (type == RTUint8ClampedArray) {
-                WTF::Uint8ClampedArray* arr = toUint8ClampedArray(toJS(toJS(context), value));
+            if (type == RTUint8Array) {
+                WTF::Uint8Array* arr = toUint8Array(toJS(toJS(context), value));
                 ret = QVariant(QByteArray(reinterpret_cast<const char*>(arr->data()), arr->length()));
                 dist = 0;
             } else {
@@ -805,10 +805,11 @@ JSValueRef convertQVariantToValue(JSContextRef context, PassRefPtr<RootObject> r
     } else if (type == static_cast<QMetaType::Type>(qMetaTypeId<QObjectList>())) {
         QObjectList ol = variant.value<QObjectList>();
         JSObjectRef array = JSObjectMakeArray(context, 0, 0, exception);
+        RefPtr<RootObject> rootRef(root); // We need a real reference, since PassRefPtr may only be passed on to one call.
         ExecState* exec = toJS(context);
         APIEntryShim entryShim(exec);
         for (int i = 0; i < ol.count(); ++i) {
-            JSValueRef jsObject = toRef(exec, QtInstance::getQtInstance(ol.at(i), root, QtInstance::QtOwnership)->createRuntimeObject(exec));
+            JSValueRef jsObject = toRef(exec, QtInstance::getQtInstance(ol.at(i), rootRef, QtInstance::QtOwnership)->createRuntimeObject(exec));
             JSObjectSetPropertyAtIndex(context, array, i, jsObject, /*ignored exception*/0);
         }
         return array;

@@ -47,7 +47,7 @@ static String getVersionInfo(const LPVOID versionInfoData, const String& info)
     UINT bufferLength;
     String subInfo = "\\StringfileInfo\\040904E4\\" + info;
     bool retval = VerQueryValueW(versionInfoData,
-        const_cast<UChar*>(subInfo.charactersWithNullTermination()),
+        const_cast<UChar*>(subInfo.charactersWithNullTermination().data()),
         &buffer, &bufferLength);
     if (!retval || bufferLength == 0)
         return String();
@@ -167,13 +167,13 @@ void PluginPackage::determineQuirks(const String& mimeType)
 bool PluginPackage::fetchInfo()
 {
     DWORD versionInfoSize, zeroHandle;
-    versionInfoSize = GetFileVersionInfoSizeW(const_cast<UChar*>(m_path.charactersWithNullTermination()), &zeroHandle);
+    versionInfoSize = GetFileVersionInfoSizeW(const_cast<UChar*>(m_path.charactersWithNullTermination().data()), &zeroHandle);
     if (versionInfoSize == 0)
         return false;
 
     OwnArrayPtr<char> versionInfoData = adoptArrayPtr(new char[versionInfoSize]);
 
-    if (!GetFileVersionInfoW(const_cast<UChar*>(m_path.charactersWithNullTermination()),
+    if (!GetFileVersionInfoW(const_cast<UChar*>(m_path.charactersWithNullTermination().data()),
             0, versionInfoSize, versionInfoData.get()))
         return false;
 
@@ -238,7 +238,7 @@ bool PluginPackage::load()
         return true;
     } else {
 #if OS(WINCE)
-        m_module = ::LoadLibraryW(m_path.charactersWithNullTermination());
+        m_module = ::LoadLibraryW(m_path.charactersWithNullTermination().data());
 #else
         WCHAR currentPath[MAX_PATH];
 
@@ -247,46 +247,11 @@ bool PluginPackage::load()
 
         String path = m_path.substring(0, m_path.reverseFind('\\'));
 
-        if (!::SetCurrentDirectoryW(path.charactersWithNullTermination()))
+        if (!::SetCurrentDirectoryW(path.charactersWithNullTermination().data()))
             return false;
 
-		// BEGIN - Modified by Lunascape Corporation
-		String targetPath = m_path;
-
-		if (targetPath.find("\\macromed\\", 0, false) != -1
-			&& targetPath.find("npswf", 0, false) != -1)
-		{
-			WCHAR tmpPath[MAX_PATH];
-			DWORD ret = ::GetTempPathW(MAX_PATH, tmpPath);
-			if (ret != 0)
-			{
-				WCHAR pluginPath[MAX_PATH];
-				PathCombine(pluginPath, tmpPath, L"AxWebKit\\npswf.dll");
-				if(::PathFileExists(pluginPath))
-				{
-					targetPath = pluginPath;
-				}
-			}
-		}
-		else if(targetPath.find("nppdf", 0, false) != -1)
-		{
-			WCHAR tmpPath[MAX_PATH];
-			DWORD ret = ::GetTempPathW(MAX_PATH, tmpPath);
-			if (ret != 0)
-			{
-				WCHAR pluginPath[MAX_PATH];
-				PathCombine(pluginPath, tmpPath, L"AxWebKit\\nppdf.dll");
-				if(::PathFileExists(pluginPath))
-				{
-					targetPath = pluginPath;
-				}
-			}
-		}
-
         // Load the library
-        //m_module = ::LoadLibraryExW(m_path.charactersWithNullTermination(), 0, LOAD_WITH_ALTERED_SEARCH_PATH);
-        m_module = ::LoadLibraryExW(targetPath.charactersWithNullTermination(), 0, LOAD_WITH_ALTERED_SEARCH_PATH);
-		// END - Modified by Lunascape Corporation
+        m_module = ::LoadLibraryExW(m_path.charactersWithNullTermination().data(), 0, LOAD_WITH_ALTERED_SEARCH_PATH);
 
         if (!::SetCurrentDirectoryW(currentPath)) {
             if (m_module)
